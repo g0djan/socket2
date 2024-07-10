@@ -22,6 +22,7 @@ use crate::{RecvFlags, TcpKeepalive};
 pub(crate) use libc::c_int;
 
 use wasmedge_wasi_socket::socket::Socket as WasmSocket;
+use wasmedge_wasi_socket::socket_wamr::SocketOptName as SocketOptNameWamr;
 
 // Used in `Domain`.
 pub(crate) const AF_UNSPEC: c_int = wasmedge_wasi_socket::socket::AddressFamily::Unspec as c_int;
@@ -394,6 +395,14 @@ pub(crate) unsafe fn setsockopt<T>(
     fd.setsockopt(opt.try_into()?, val.try_into()?, payload)
 }
 
+pub(crate) unsafe fn setsockopt_socket(
+    fd: Socket,
+    val: SocketOptNameWamr,
+) -> io::Result<()> {
+    let fd: &WasmSocket = unsafe { std::mem::transmute(&fd) };
+    fd.setsockopt_socket(val)
+}
+
 /// Unix only API.
 impl crate::Socket {
     /// Returns `true` if `listen(2)` was called on this socket by checking the
@@ -452,7 +461,7 @@ impl crate::Socket {
     /// When enabled, this socket is allowed to send packets to a broadcast
     /// address.
     pub fn set_broadcast(&self, broadcast: bool) -> io::Result<()> {
-        unsafe { setsockopt(self.as_raw(), SOL_SOCKET, SO_BROADCAST, broadcast as c_int) }
+        unsafe { setsockopt_socket(self.as_raw(), SocketOptNameWamr::SoBroadcast(broadcast)) }
     }
 
     /// Get the value of the `SO_ERROR` option on this socket.
@@ -485,7 +494,7 @@ impl crate::Socket {
     ///
     /// Enable sending of keep-alive messages on connection-oriented sockets.
     pub fn set_keepalive(&self, keepalive: bool) -> io::Result<()> {
-        unsafe { setsockopt(self.as_raw(), SOL_SOCKET, SO_KEEPALIVE, keepalive as c_int) }
+        unsafe { setsockopt_socket(self.as_raw(), SocketOptNameWamr::SoKeepalive(keepalive)) }
     }
 
     /// Get the value of the `SO_LINGER` option on this socket.
@@ -567,7 +576,7 @@ impl crate::Socket {
     /// Changes the size of the operating system's receive buffer associated
     /// with the socket.
     pub fn set_recv_buffer_size(&self, size: usize) -> io::Result<()> {
-        unsafe { setsockopt(self.as_raw(), SOL_SOCKET, SO_RCVBUF, size as c_int) }
+        unsafe { setsockopt_socket(self.as_raw(), SocketOptNameWamr::SoRcvbuf(size as u32)) }
     }
 
     /// Get value for the `SO_RCVTIMEO` option on this socket.
@@ -603,7 +612,7 @@ impl crate::Socket {
     /// addresses. For IPv4 sockets this means that a socket may bind even when
     /// there's a socket already listening on this port.
     pub fn set_reuse_address(&self, reuse: bool) -> io::Result<()> {
-        unsafe { setsockopt(self.as_raw(), SOL_SOCKET, SO_REUSEADDR, reuse as c_int) }
+        unsafe { setsockopt_socket(self.as_raw(), SocketOptNameWamr::SoReuseaddr(reuse)) }
     }
 
     /// Get the value of the `SO_SNDBUF` option on this socket.
@@ -622,7 +631,7 @@ impl crate::Socket {
     /// Changes the size of the operating system's send buffer associated with
     /// the socket.
     pub fn set_send_buffer_size(&self, size: usize) -> io::Result<()> {
-        unsafe { setsockopt(self.as_raw(), SOL_SOCKET, SO_SNDBUF, size as c_int) }
+        unsafe { setsockopt_socket(self.as_raw(), SocketOptNameWamr::SoSndbuf(size as u32)) }
     }
 
     /// Get value for the `SO_SNDTIMEO` option on this socket.
